@@ -22,7 +22,6 @@ fun main() {
                 }
                 .filter { it }
                 .size
-
     }
 
     val input = readInput("Day01")
