@@ -1,6 +1,7 @@
 class Board(input: MutableList<MutableList<Pair<String, Boolean>>>, isCompleted: Boolean) {
     private val actualBoard = input
     var completed: Boolean = isCompleted
+    var numberThatHelpedMeWin: Int = -1
 
     fun applyNumber(numberToPlayWith: String): Board {
         return Board(this.actualBoard.map {
@@ -17,7 +18,11 @@ class Board(input: MutableList<MutableList<Pair<String, Boolean>>>, isCompleted:
         )
     }
 
-    fun markBoardCompletion(): Boolean {
+    fun markBoardCompletion(numberToPlayWith: String) {
+        if (this.completed) {
+            return
+        }
+
         // check columns
         // :( couldn't do this in functional style
         for (i in 0 until this.actualBoard.size) {
@@ -28,7 +33,8 @@ class Board(input: MutableList<MutableList<Pair<String, Boolean>>>, isCompleted:
             this.completed = currentColumn
                 .filter { !it.second }.isEmpty()
             if (this.completed) {
-                return true
+                this.numberThatHelpedMeWin = numberToPlayWith.toInt()
+                return
             }
         }
 
@@ -38,7 +44,10 @@ class Board(input: MutableList<MutableList<Pair<String, Boolean>>>, isCompleted:
             .filter { it -> it == 0 }
             .isNotEmpty()
 
-        return this.completed
+        if (this.completed) {
+            this.numberThatHelpedMeWin = numberToPlayWith.toInt()
+        }
+        return
     }
 
     fun calculateSumOfUnmarkedNumbers(): Int {
@@ -86,7 +95,7 @@ fun computeFirstScore(numberJustCalled: Int, boards: List<Board>): Int {
     return boards.filter { it.completed }.first().calculateSumOfUnmarkedNumbers() * numberJustCalled
 }
 
-fun letAllBoardsPlayBingo(
+fun letMeWinBingo(
     chosenNumbers: List<String>,
     boards: MutableList<Board>,
     winnerScore: Int
@@ -97,8 +106,8 @@ fun letAllBoardsPlayBingo(
             // play with the first element
             val numberToPlayWith = chosenNumbers.first()
             val appliedBoards = boards
-                .map { it -> it.applyNumber(numberToPlayWith).also { it.markBoardCompletion() } }
-            letAllBoardsPlayBingo(
+                .map { it -> it.applyNumber(numberToPlayWith).also { it.markBoardCompletion(numberToPlayWith) } }
+            letMeWinBingo(
                 chosenNumbers.subList(1, chosenNumbers.size), appliedBoards.toMutableList(),
                 if (winnerScore == -1 && appliedBoards.filter { it.completed }.isNotEmpty()) {
                     computeFirstScore(numberToPlayWith.toInt(), appliedBoards)
@@ -110,14 +119,44 @@ fun letAllBoardsPlayBingo(
     }
 }
 
+fun computeSecondScore(numberJustCalled: Int, boards: List<Board>): Int {
+    return boards.filter { it.numberThatHelpedMeWin == numberJustCalled }.first()
+        .calculateSumOfUnmarkedNumbers() * numberJustCalled
+}
+
+fun letGiantSquidWinBingo(
+    chosenNumbers: List<String>,
+    boards: MutableList<Board>,
+    winnerScore: Int
+): Pair<MutableList<Board>, Int> {
+    return when (chosenNumbers.size) {
+        0 -> Pair(boards, winnerScore)
+        else -> {
+            // play with the first element
+            val numberToPlayWith = chosenNumbers.first()
+            val appliedBoards = boards
+                .map { it -> it.applyNumber(numberToPlayWith).also { it.markBoardCompletion(numberToPlayWith) } }
+            letGiantSquidWinBingo(
+                chosenNumbers.subList(1, chosenNumbers.size), appliedBoards.toMutableList(),
+                if (winnerScore == -1 && appliedBoards.filter { it.completed }.size == boards.size) {
+                    computeSecondScore(numberToPlayWith.toInt(), appliedBoards)
+                } else {
+                    winnerScore
+                }
+            )
+        }
+    }
+}
+
 fun main() {
     fun part1(input: List<String>): Int {
         return Pair(getChosenNumbers(input[0]), constructBoards(input.subList(1, input.size)))
-            .let { it -> letAllBoardsPlayBingo(it.first, it.second, -1) }.second
+            .let { it -> letMeWinBingo(it.first, it.second, -1) }.second
     }
 
     fun part2(input: List<String>): Int {
-        return input.size
+        return Pair(getChosenNumbers(input[0]), constructBoards(input.subList(1, input.size)))
+            .let { it -> letGiantSquidWinBingo(it.first, it.second, -1) }.second
     }
 
     val input = readInput("Day04")
